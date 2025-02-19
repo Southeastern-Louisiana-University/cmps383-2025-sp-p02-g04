@@ -1,101 +1,93 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
+using Selu383.SP25.P02.Api.Data;
+using Selu383.SP25.P02.Api.Features.Roles;
+using Selu383.SP25.P02.Api.Features.Users;
 
-    using Microsoft.AspNetCore.Authentication.Cookies;
-    using Microsoft.AspNetCore.Identity;
-    using Microsoft.AspNetCore.Rewrite;
-    using Microsoft.EntityFrameworkCore;
-    using Selu383.SP25.P02.Api.Data;
-    using Selu383.SP25.P02.Api.Features.Roles;
-    using Selu383.SP25.P02.Api.Features.Users;
-
-    namespace Selu383.SP25.P02.Api
+namespace Selu383.SP25.P02.Api
+{
+    public class Program
     {
-        public class Program
+        public static async Task Main(string[] args)
         {
-            public static async Task Main(string[] args)
+            var builder = WebApplication.CreateBuilder(args);
+
+            builder.Services.AddDbContext<DataContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext") ?? throw new InvalidOperationException("Connection string 'DataContext' not found.")));
+
+            builder.Services.AddIdentity<User, Role>(options =>
             {
-                var builder = WebApplication.CreateBuilder(args);
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequiredUniqueChars = 1;
+            })
+                .AddEntityFrameworkStores<DataContext>()
+                .AddDefaultTokenProviders();
 
-                // Add services to the container.
-                builder.Services.AddDbContext<DataContext>(options =>
-                    options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext") ?? throw new InvalidOperationException("Connection string 'DataContext' not found.")));
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie();
 
-                // Configure Identity
-                builder.Services.AddIdentity<User, Role>(options =>
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Events.OnRedirectToLogin = context =>
                 {
-                    options.Password.RequireDigit = true;
-                    options.Password.RequireLowercase = true;
-                    options.Password.RequireUppercase = true;
-                    options.Password.RequireNonAlphanumeric = true;
-                    options.Password.RequiredLength = 8;
-                    options.Password.RequiredUniqueChars = 1;
-                })
-                    .AddEntityFrameworkStores<DataContext>()
-                    .AddDefaultTokenProviders();
-
-                builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                    .AddCookie();
-
-
-                builder.Services.ConfigureApplicationCookie(options =>
+                    if (context.Request.Path.StartsWithSegments(options.AccessDeniedPath))
                     {
-                        // Cookie settings
-                        options.Cookie.HttpOnly = true;
-                        options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
-
-                        options.LoginPath = "/Identity/Account/Login";
-                        options.AccessDeniedPath = "/Identity/Account/AccessDenied";
-                        options.SlidingExpiration = true;
-
-                        options.Events.OnRedirectToLogin = context =>
-                        {
-                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                            return Task.CompletedTask;
-                        };
-                    });
-
-
-                    builder.Services.AddControllers();
-                    builder.Services.AddEndpointsApiExplorer();
-                    builder.Services.AddSwaggerGen();
-
-                    builder.Services.AddCors(options =>
-                    {
-                        options.AddPolicy("AllowAll",
-                            policy => policy.AllowAnyOrigin()
-                                            .AllowAnyMethod()
-                                            .AllowAnyHeader());
-                    });            
-
-                    var app = builder.Build();
-
-                    using (var scope = app.Services.CreateScope())
-                    {
-                        var db = scope.ServiceProvider.GetRequiredService<DataContext>();
-                        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-                        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
-                        await db.Database.MigrateAsync();
-                        await SeedRoles.Initialize(scope.ServiceProvider);
-                        await SeedUsers.Initialize(scope.ServiceProvider, userManager, roleManager);
-                        SeedTheaters.Initialize(scope.ServiceProvider);
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     }
-
-                    // Configure the HTTP request pipeline.
-                    if (app.Environment.IsDevelopment())
+                    else
                     {
-                        app.UseSwagger();
-                        app.UseSwaggerUI();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     }
+                    return Task.CompletedTask;
+                };
+            });
 
-                    app.UseCors("AllowAll");
-                    app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
-                    app.UseHttpsRedirection();
-                    app.UseAuthentication();
-                    app.UseAuthorization();
+            builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll",
+                    policy => policy.AllowAnyOrigin()
+                                    .AllowAnyMethod()
+                                    .AllowAnyHeader());
+            });
 
-                    app.MapControllers();
+            var app = builder.Build();
 
-                    app.Run();
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
+                await db.Database.MigrateAsync();
+                await SeedRoles.Initialize(scope.ServiceProvider);
+                await SeedUsers.Initialize(scope.ServiceProvider, userManager, roleManager);
+                SeedTheaters.Initialize(scope.ServiceProvider);
             }
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+            app.UseCors("AllowAll");
+            app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
+            app.UseHttpsRedirection();
+            app.UseRouting();
+            app.UseAuthentication();
+            app.UseAuthorization();
+            app.MapControllers();
+
+            app.Run();
         }
     }
+}

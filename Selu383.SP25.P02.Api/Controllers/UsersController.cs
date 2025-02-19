@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,7 @@ namespace Selu383.SP25.P02.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class UsersController : ControllerBase
     {
         private readonly DataContext _context;
@@ -107,12 +109,16 @@ namespace Selu383.SP25.P02.Api.Controllers
 
         // POST: api/Users
         [HttpPost]
-        [HttpPost]
         public async Task<ActionResult<UserGetDto>> PostUser(UserDto newUserDto)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            if (newUserDto.Roles == null || !newUserDto.Roles.Any())
+            {
+                return BadRequest("At least one role must be assigned.");
             }
 
             var newUser = new User
@@ -128,24 +134,14 @@ namespace Selu383.SP25.P02.Api.Controllers
                 return BadRequest(result.Errors);
             }
 
-            // Assign multiple roles
-            var roleErrors = new List<string>();
             foreach (var roleName in newUserDto.Roles)
             {
-                var roleExists = await _roleManager.RoleExistsAsync(roleName);
-                if (roleExists)
+                if (!await _roleManager.RoleExistsAsync(roleName))
                 {
-                    await _userManager.AddToRoleAsync(newUser, roleName);
+                    return BadRequest($"Role '{roleName}' does not exist.");
                 }
-                else
-                {
-                    roleErrors.Add($"Role '{roleName}' does not exist.");
-                }
-            }
 
-            if (roleErrors.Any())
-            {
-                return BadRequest(string.Join("; ", roleErrors));
+                await _userManager.AddToRoleAsync(newUser, roleName);
             }
 
             var userDto = new UserGetDto
@@ -157,7 +153,7 @@ namespace Selu383.SP25.P02.Api.Controllers
                 Roles = newUserDto.Roles
             };
 
-            return CreatedAtAction(nameof(GetUser), new { id = newUser.Id }, userDto);
+            return Ok(userDto);
         }
 
         // DELETE: api/Users/5

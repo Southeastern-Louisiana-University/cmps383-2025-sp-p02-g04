@@ -8,9 +8,9 @@ namespace Selu383.SP25.P02.Api.Features.Users
         public int Id { get; set; }
 
         [Required]
-        public string Username { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public required string Username { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public required string Password { get; set; }
         public required List<string> Roles { get; set; }
     }
@@ -19,8 +19,8 @@ namespace Selu383.SP25.P02.Api.Features.Users
     {
         public int Id { get; set; }
         public required string Username { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public required List<String> Roles { get; set; }
     }
 }
