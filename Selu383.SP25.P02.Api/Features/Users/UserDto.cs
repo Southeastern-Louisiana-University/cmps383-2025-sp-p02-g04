@@ -11,20 +11,16 @@ namespace Selu383.SP25.P02.Api.Features.Users
         public string Username { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-
-        [Required]
-        public string Password { get; set; }
-
-        [Required]
-        public string Role { get; set; }
+        public required string Password { get; set; }
+        public required List<string> Roles { get; set; }
     }
 
     public class UserGetDto
     {
         public int Id { get; set; }
-        public string Username { get; set; }
+        public required string Username { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string Role { get; set; }
+        public required List<String> Roles { get; set; }
     }
 }

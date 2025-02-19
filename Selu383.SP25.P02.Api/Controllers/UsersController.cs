@@ -20,7 +20,6 @@ namespace Selu383.SP25.P02.Api.Controllers
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<Role> _roleManager;
 
-
         public UsersController(DataContext context, UserManager<User> userManager, RoleManager<Role> roleManager)
         {
             _context = context;
@@ -30,23 +29,30 @@ namespace Selu383.SP25.P02.Api.Controllers
 
         // GET: api/Users
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserGetDto>>> GetUsers()
         {
-            var users = await _context.Users
-                        .Select(x => new UserDto
-                        {
-                            Id = x.Id,
-                            Username = x.UserName,
-                            FirstName = x.FirstName,
-                            LastName = x.LastName,
-                        })
-                        .ToListAsync();
-            return Ok(users);
+            var users = await _context.Users.ToListAsync();
+            var userDtos = new List<UserGetDto>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userDtos.Add(new UserGetDto
+                {
+                    Id = user.Id,
+                    Username = user.UserName,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Roles = roles.ToList()
+                });
+            }
+
+            return Ok(userDtos);
         }
 
         // GET: api/Users/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<UserGetDto>> GetUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
 
@@ -55,20 +61,21 @@ namespace Selu383.SP25.P02.Api.Controllers
                 return NotFound();
             }
 
+            var roles = await _userManager.GetRolesAsync(user);
+
             var userDto = new UserGetDto
             {
                 Id = user.Id,
                 Username = user.UserName,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-
+                Roles = roles.ToList()
             };
 
             return Ok(userDto);
         }
 
         // PUT: api/Users/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutUser(int id, User user)
         {
@@ -99,9 +106,9 @@ namespace Selu383.SP25.P02.Api.Controllers
         }
 
         // POST: api/Users
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<User>> PostUser(UserDto newUserDto)
+        [HttpPost]
+        public async Task<ActionResult<UserGetDto>> PostUser(UserDto newUserDto)
         {
             if (!ModelState.IsValid)
             {
@@ -112,42 +119,49 @@ namespace Selu383.SP25.P02.Api.Controllers
             {
                 UserName = newUserDto.Username,
                 FirstName = newUserDto.FirstName,
-                LastName = newUserDto.LastName,
-                PasswordHash = newUserDto.Password
+                LastName = newUserDto.LastName
             };
 
             var result = await _userManager.CreateAsync(newUser, newUserDto.Password);
-
-            if (result.Succeeded)
-            {
-                var userRole = await _roleManager.FindByNameAsync(newUserDto.Role);
-                if (userRole != null)
-                {
-                    await _userManager.AddToRoleAsync(newUser, userRole.Name);
-                }
-                else
-                {
-                    return BadRequest($"Role '{newUserDto.Role}' does not exist.");
-                }
-
-                var userDto = new UserGetDto
-                {
-                    Id = newUser.Id,
-                    Username = newUser.UserName,
-                    FirstName = newUser.FirstName,
-                    LastName = newUser.LastName,
-                };
-
-                return CreatedAtAction(nameof(GetUser), new { id = newUser.Id }, userDto);
-            }
-            else
+            if (!result.Succeeded)
             {
                 return BadRequest(result.Errors);
             }
+
+            // Assign multiple roles
+            var roleErrors = new List<string>();
+            foreach (var roleName in newUserDto.Roles)
+            {
+                var roleExists = await _roleManager.RoleExistsAsync(roleName);
+                if (roleExists)
+                {
+                    await _userManager.AddToRoleAsync(newUser, roleName);
+                }
+                else
+                {
+                    roleErrors.Add($"Role '{roleName}' does not exist.");
+                }
+            }
+
+            if (roleErrors.Any())
+            {
+                return BadRequest(string.Join("; ", roleErrors));
+            }
+
+            var userDto = new UserGetDto
+            {
+                Id = newUser.Id,
+                Username = newUser.UserName,
+                FirstName = newUser.FirstName,
+                LastName = newUser.LastName,
+                Roles = newUserDto.Roles
+            };
+
+            return CreatedAtAction(nameof(GetUser), new { id = newUser.Id }, userDto);
         }
 
-            // DELETE: api/Users/5
-            [HttpDelete("{id}")]
+        // DELETE: api/Users/5
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
