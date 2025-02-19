@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP25.P02.Api.Data;
 using Selu383.SP25.P02.Api.Features.Theaters;
@@ -38,6 +39,7 @@ namespace Selu383.SP25.P02.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles ="Admin")]
         public ActionResult<TheaterDto> CreateTheater(TheaterDto dto)
         {
             if (IsInvalid(dto))
@@ -62,6 +64,7 @@ namespace Selu383.SP25.P02.Api.Controllers
 
         [HttpPut]
         [Route("{id}")]
+        [Authorize(Roles = "Admin")]
         public ActionResult<TheaterDto> UpdateTheater(int id, TheaterDto dto)
         {
             if (IsInvalid(dto))
@@ -88,6 +91,7 @@ namespace Selu383.SP25.P02.Api.Controllers
 
         [HttpDelete]
         [Route("{id}")]
+        [Authorize(Roles = "Admin")]
         public ActionResult DeleteTheater(int id)
         {
             var theater = theaters.FirstOrDefault(x => x.Id == id);
