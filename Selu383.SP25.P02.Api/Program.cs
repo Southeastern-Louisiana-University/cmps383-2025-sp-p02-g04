@@ -1,6 +1,9 @@
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Selu383.SP25.P02.Api.Data;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace Selu383.SP25.P02.Api
 {
@@ -14,33 +17,54 @@ namespace Selu383.SP25.P02.Api
             builder.Services.AddDbContext<DataContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext") ?? throw new InvalidOperationException("Connection string 'DataContext' not found.")));
 
+            // This service is for Swagger UI
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Theatre API",
+                    Version = "v1",
+                    Description = "API for managing theatres"
+                });
+            });
+
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
-            var app = builder.Build();
+                var app = builder.Build();
 
-            using (var scope = app.Services.CreateScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<DataContext>();
-                await db.Database.MigrateAsync();
-                SeedTheaters.Initialize(scope.ServiceProvider);
+                using (var scope = app.Services.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+                    await db.Database.MigrateAsync();
+                    SeedTheaters.Initialize(scope.ServiceProvider);
+                }
+
+                // Configure the HTTP request pipeline.
+                if (app.Environment.IsDevelopment())
+                {
+                    app.MapOpenApi();
+
+                    app.UseSwagger();
+
+                }
+                app.UseSwaggerUI(options =>
+                {
+                    // The Swagger UI will be available at the following endpoint
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Theatre API v1");
+                    options.RoutePrefix = string.Empty; // Set Swagger UI to the root
+                });
+
+                app.UseHttpsRedirection();
+
+                app.UseAuthorization();
+
+
+                app.MapControllers();
+
+                app.Run();
             }
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-            }
-
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
         }
     }
-}
+
