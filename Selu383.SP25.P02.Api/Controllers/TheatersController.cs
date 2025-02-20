@@ -17,7 +17,7 @@ namespace Selu383.SP25.P02.Api.Controllers
             this.dataContext = dataContext;
             theaters = dataContext.Set<Theater>();
         }
-
+//
         [HttpGet]
         public IQueryable<TheaterDto> GetAllTheaters()
         {
