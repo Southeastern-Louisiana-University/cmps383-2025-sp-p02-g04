@@ -34,16 +34,19 @@ namespace Selu383.SP25.P02.Api
 
             builder.Services.ConfigureApplicationCookie(options =>
             {
+                options.Events.OnRedirectToAccessDenied = context => {
+
+
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    
+                    return Task.CompletedTask;
+
+                };
                 options.Events.OnRedirectToLogin = context =>
                 {
-                    if (context.Request.Path.StartsWithSegments(options.AccessDeniedPath))
-                    {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    }
-                    else
-                    {
+
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    }
+
                     return Task.CompletedTask;
                 };
             });
@@ -52,13 +55,6 @@ namespace Selu383.SP25.P02.Api
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAll",
-                    policy => policy.AllowAnyOrigin()
-                                    .AllowAnyMethod()
-                                    .AllowAnyHeader());
-            });
 
             var app = builder.Build();
 
