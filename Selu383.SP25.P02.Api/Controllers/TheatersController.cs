@@ -39,7 +39,7 @@ namespace Selu383.SP25.P02.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles ="Admin")]
+        [Authorize(Roles = "Admin")]
         public ActionResult<TheaterDto> CreateTheater(TheaterDto dto)
         {
             if (IsInvalid(dto))
@@ -47,10 +47,20 @@ namespace Selu383.SP25.P02.Api.Controllers
                 return BadRequest();
             }
 
+            if (dto.ManagerId.HasValue)
+            {
+                var managerExists = dataContext.Users.Any(u => u.Id == dto.ManagerId);
+                if (!managerExists)
+                {
+                    return BadRequest("Invalid ManagerId. User does not exist.");
+                }
+            }
+
             var theater = new Theater
             {
                 Name = dto.Name,
                 Address = dto.Address,
+                ManagerId = dto.ManagerId,
                 SeatCount = dto.SeatCount,
             };
             theaters.Add(theater);
@@ -123,6 +133,7 @@ namespace Selu383.SP25.P02.Api.Controllers
                     Id = x.Id,
                     Name = x.Name,
                     Address = x.Address,
+                    ManagerId = x.ManagerId,
                     SeatCount = x.SeatCount,
                 });
         }
