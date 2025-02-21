@@ -1,3 +1,11 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
+using Selu383.SP25.P02.Api.Data;
+using Selu383.SP25.P02.Api.Features.Roles;
+using Selu383.SP25.P02.Api.Features.Users;
+
 namespace Selu383.SP25.P02.Api
 {
     public class Program
@@ -6,51 +14,74 @@ namespace Selu383.SP25.P02.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
             builder.Services.AddDbContext<DataContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext") ?? throw new InvalidOperationException("Connection string 'DataContext' not found.")));
 
-            // This service is for Swagger UI
-            /*  builder.Services.AddSwaggerGen(options =>
-              {
-                 options.SwaggerDoc("v1", new OpenApiInfo
-                 {
-                     Title = "Theatre API",
-                     Version = "v1",
-                     Description = "API for managing theatres"
-                  });
-            });   */
+            builder.Services.AddIdentity<User, Role>(options =>
+            {
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequiredUniqueChars = 1;
+            })
+                .AddEntityFrameworkStores<DataContext>()
+                .AddDefaultTokenProviders();
+
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie();
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Events.OnRedirectToAccessDenied = context => {
+
+
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    
+                    return Task.CompletedTask;
+
+                };
+                options.Events.OnRedirectToLogin = context =>
+                {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+                    return Task.CompletedTask;
+                };
+            });
 
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
+
 
             var app = builder.Build();
 
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
                 await db.Database.MigrateAsync();
+                await SeedRoles.Initialize(scope.ServiceProvider);
+                await SeedUsers.Initialize(scope.ServiceProvider, userManager, roleManager);
                 SeedTheaters.Initialize(scope.ServiceProvider);
             }
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
 
-                //app.UseSwagger();
-
+                app.UseSwagger();
+                app.UseSwaggerUI();
             }
-            /*app.UseSwaggerUI(options =>
-            {
-                // The Swagger UI will be available at the following endpoint
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Theatre API v1");
-                options.RoutePrefix = string.Empty; // Set Swagger UI to the root
-            }); */
 
+
+            app.UseCors("AllowAll");
+            app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
             app.UseHttpsRedirection();
-
+            app.UseRouting();
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseRouting()
@@ -70,6 +101,7 @@ namespace Selu383.SP25.P02.Api
             {
                 app.MapFallbackToFile("/index.html");
             }
+
 
             app.Run();
         }
