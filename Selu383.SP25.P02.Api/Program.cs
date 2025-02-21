@@ -44,7 +44,6 @@ namespace Selu383.SP25.P02.Api
                 };
                 options.Events.OnRedirectToLogin = context =>
                 {
-//
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
                     return Task.CompletedTask;
@@ -71,9 +70,12 @@ namespace Selu383.SP25.P02.Api
 
             if (app.Environment.IsDevelopment())
             {
+                app.MapOpenApi();
+
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
 
             app.UseCors("AllowAll");
             app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
@@ -81,9 +83,28 @@ namespace Selu383.SP25.P02.Api
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
-            app.MapControllers();
+
+            app.UseRouting()
+             .UseEndpoints(x =>
+                            {
+                                x.MapControllers();
+                            });
+            app.UseStaticFiles();
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSpa(x =>
+                {
+                    x.UseProxyToSpaDevelopmentServer("http://localhost:5173");
+                });
+            }
+            else
+            {
+                app.MapFallbackToFile("/index.html");
+            }
+
 
             app.Run();
         }
     }
 }
+
