@@ -91,6 +91,7 @@ namespace Selu383.SP25.P02.Api.Controllers
             theater.Name = dto.Name;
             theater.Address = dto.Address;
             theater.SeatCount = dto.SeatCount;
+            theater.ManagerId = dto.ManagerId;
 
             dataContext.SaveChanges();
 
