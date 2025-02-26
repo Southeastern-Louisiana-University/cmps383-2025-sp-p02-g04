@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP25.P02.Api.Data;
 using Selu383.SP25.P02.Api.Features.Roles;
@@ -35,25 +34,17 @@ namespace Selu383.SP25.P02.Api
             builder.Services.ConfigureApplicationCookie(options =>
             {
                 options.Events.OnRedirectToAccessDenied = context => {
-
-
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
-
                     return Task.CompletedTask;
-
                 };
                 options.Events.OnRedirectToLogin = context =>
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-
                     return Task.CompletedTask;
                 };
             });
 
             builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
 
             var app = builder.Build();
 
@@ -68,17 +59,6 @@ namespace Selu383.SP25.P02.Api
                 SeedTheaters.Initialize(scope.ServiceProvider);
             }
 
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-
-            app.UseCors("AllowAll");
-            app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseAuthentication();
@@ -101,7 +81,6 @@ namespace Selu383.SP25.P02.Api
             {
                 app.MapFallbackToFile("/index.html");
             }
-
 
             app.Run();
         }
