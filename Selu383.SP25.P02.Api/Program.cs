@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
@@ -15,11 +14,9 @@ namespace Selu383.SP25.P02.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
             builder.Services.AddDbContext<DataContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext") ?? throw new InvalidOperationException("Connection string 'DataContext' not found.")));
 
-            // Configure Identity
             builder.Services.AddIdentity<User, Role>(options =>
             {
                 options.Password.RequireDigit = true;
@@ -32,21 +29,31 @@ namespace Selu383.SP25.P02.Api
                 .AddEntityFrameworkStores<DataContext>()
                 .AddDefaultTokenProviders();
 
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie();
+
             builder.Services.ConfigureApplicationCookie(options =>
             {
-                // Cookie settings
-                options.Cookie.HttpOnly = true;
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+                options.Events.OnRedirectToAccessDenied = context => {
 
-                options.LoginPath = "/Identity/Account/Login";
-                options.AccessDeniedPath = "/Identity/Account/AccessDenied";
-                options.SlidingExpiration = true;
+
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+
+                    return Task.CompletedTask;
+
+                };
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+                    return Task.CompletedTask;
+                };
             });
-
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
 
             var app = builder.Build();
 
@@ -61,20 +68,40 @@ namespace Selu383.SP25.P02.Api
                 SeedTheaters.Initialize(scope.ServiceProvider);
             }
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
+                app.MapOpenApi();
+
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
+
+            app.UseCors("AllowAll");
             app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
             app.UseHttpsRedirection();
+            app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseRouting()
+             .UseEndpoints(x =>
+             {
+                 x.MapControllers();
+             });
+            app.UseStaticFiles();
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSpa(x =>
+                {
+                    x.UseProxyToSpaDevelopmentServer("http://localhost:5173");
+                });
+            }
+            else
+            {
+                app.MapFallbackToFile("/index.html");
+            }
 
-            app.MapControllers();
 
             app.Run();
         }
