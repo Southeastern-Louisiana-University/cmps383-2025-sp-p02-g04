@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP25.P02.Api.Data;
 using Selu383.SP25.P02.Api.Features.Roles;
@@ -33,8 +34,7 @@ namespace Selu383.SP25.P02.Api
 
             builder.Services.ConfigureApplicationCookie(options =>
             {
-                options.Events.OnRedirectToAccessDenied = context =>
-                {
+                options.Events.OnRedirectToAccessDenied = context => {
 
 
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -67,20 +67,29 @@ namespace Selu383.SP25.P02.Api
                 await SeedUsers.Initialize(scope.ServiceProvider, userManager, roleManager);
                 SeedTheaters.Initialize(scope.ServiceProvider);
             }
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.MapOpenApi();
+
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+
+            app.UseCors("AllowAll");
+            app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
             app.UseHttpsRedirection();
+            app.UseRouting();
             app.UseAuthentication();
-
-            app.UseRouting()
-                .UseEndpoints(x =>
-                {
-                    x.MapControllers();
-                });
-
             app.UseAuthorization();
 
-
+            app.UseRouting()
+             .UseEndpoints(x =>
+             {
+                 x.MapControllers();
+             });
             app.UseStaticFiles();
-
             if (app.Environment.IsDevelopment())
             {
                 app.UseSpa(x =>
@@ -93,8 +102,8 @@ namespace Selu383.SP25.P02.Api
                 app.MapFallbackToFile("/index.html");
             }
 
+
             app.Run();
         }
     }
 }
-
