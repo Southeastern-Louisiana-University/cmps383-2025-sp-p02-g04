@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP25.P02.Api.Data;
 using Selu383.SP25.P02.Api.Features.Theaters;
+using System.Security.Claims;
 
 namespace Selu383.SP25.P02.Api.Controllers
 {
@@ -74,7 +75,7 @@ namespace Selu383.SP25.P02.Api.Controllers
 
         [HttpPut]
         [Route("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public ActionResult<TheaterDto> UpdateTheater(int id, TheaterDto dto)
         {
             if (IsInvalid(dto))
@@ -88,9 +89,26 @@ namespace Selu383.SP25.P02.Api.Controllers
                 return NotFound();
             }
 
+            //  Get logged-in user ID
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim))
+            {
+                return Unauthorized();
+            }
+
+            int userId = int.Parse(userIdClaim);
+            bool isAdmin = User.IsInRole("Admin");
+            bool isManager = theater.ManagerId.HasValue && theater.ManagerId == userId;
+
+            if (!isAdmin && !isManager)
+            {
+                return Forbid();
+            }
+
             theater.Name = dto.Name;
             theater.Address = dto.Address;
             theater.SeatCount = dto.SeatCount;
+            theater.ManagerId = dto.ManagerId;
 
             dataContext.SaveChanges();
 
