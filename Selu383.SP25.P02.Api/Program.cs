@@ -68,28 +68,19 @@ namespace Selu383.SP25.P02.Api
                 SeedTheaters.Initialize(scope.ServiceProvider);
             }
 
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-
-            app.UseCors("AllowAll");
-            app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
             app.UseHttpsRedirection();
-            app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseRouting()
              .UseEndpoints(x =>
-                            {
-                                x.MapControllers();
-                            });
+                {
+                    x.MapControllers();
+                });
+
             app.UseStaticFiles();
+
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSpa(x =>
